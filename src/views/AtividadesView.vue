@@ -433,7 +433,7 @@ function checkAnswers() {
         }
     }
 
-    const resultMessage = `Você acertou ${score} de 14 questões.`; 
+    const resultMessage = `Você acertou ${score} de 14 questões.`;  
     let medal = '';
 
     if (score >= 7) {
