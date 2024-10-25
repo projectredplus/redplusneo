@@ -16,7 +16,7 @@
                         IA</button>
                 </div>
             </div>
-            <p class="loader" v-if="loading">Carregando...</p>
+            <p class="loader" v-if="loading">{{ loading }}</p>
             <div class="panel" v-if="panel">
                 <h1 class="nota">{{ panel.nota }}</h1>
                 <h2 class="nota-sub">{{ panel.nota >= 700 ? 'Parabéns!' : 'Quase lá!' }}</h2>
@@ -97,7 +97,7 @@
             alert("Digite pelo menos 7 linhas de texto!")
             return
         }
-        loading.value = true
+        loading.value = 'Carregando...'
         const client = await fetch('https://api.llama-api.com/chat/completions', {
             method: 'POST',
             headers: {
@@ -134,11 +134,12 @@
             })
         })
         const res = await client.json()
-
-        console.log(res)
-
-        panel.value = res?.choices[0].message?.function_call?.arguments
-        loading.value = false
+        if (client.status === 200) {
+            panel.value = res?.choices[0].message?.function_call?.arguments
+            loading.value = ''
+        } else {
+            loading.value = 'Lamentamos, serviço de IA indisponível. Tente novamente     mais tarde!'
+        }
     }
 
     onMounted(() => {
