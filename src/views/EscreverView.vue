@@ -11,9 +11,17 @@
                     <button id="startBtn" class="btn">Iniciar</button>
                     <button id="pauseBtn" class="btn" disabled>Pausar</button>
                     <button id="resetBtn" class="btn" disabled>Reiniciar</button>
-                    <textarea id="notes" placeholder="Digite sua redação aqui"></textarea>
-                    <button id="correctionBtn" class="btn" style="display: none;">Corrigir na Glau</button>
+                    <textarea id="notes" placeholder="Digite sua redação aqui" v-model="redacao"></textarea>
+                    <button @click="correctEssay" id="correctionBtn" class="btn" style="display: none;">Corrigir com
+                        IA</button>
                 </div>
+            </div>
+            <p class="loader" v-if="loading">Carregando...</p>
+            <div class="panel" v-if="panel">
+                <h1 class="nota">{{ panel.nota }}</h1>
+                <h2 class="nota-sub">{{ panel.nota >= 700 ? 'Parabéns!' : 'Quase lá!' }}</h2>
+                <p class="positives" v-for="item in panel.positivos" :key="item">{{ item }}</p>
+                <p class="negatives" v-for="item in panel.negativos" :key="item">{{ item }}</p>
             </div>
             <div class="justified-text">
                 <h1>Estrutura</h1>
@@ -29,19 +37,109 @@
 </template>
 
 <style>
-.card2 {
-    max-width: 750px !important;
-    padding: 16px 0;
-    width: 100%;
-}
+    .loader {
+        text-align: center;
+    }
 
-.btn:hover {
-    background-color: #4caf50;
-}
+    .card2 {
+        max-width: 750px !important;
+        padding: 16px 0;
+        width: 100%;
+        margin: 20px auto;
+    }
+
+    .btn:hover {
+        background-color: #4caf50;
+    }
+
+    .panel {
+        text-align: center;
+        margin: 0;
+    }
+
+    .nota {
+        font-size: 28px;
+        font-weight: 800;
+        margin: 0;
+    }
+
+    .nota-sub {
+        font-size: 20px;
+        font-weight: 400;
+    }
+
+    .positives {
+        background-color: rgba(35, 255, 35, 0.342);
+        margin: 2px;
+        padding: 8px
+    }
+
+    .negatives {
+        background-color: rgba(255, 55, 55, 0.308);
+        margin: 2px;
+        padding: 8px;
+    }
 </style>
 
 <script setup>
-    import { onMounted } from 'vue';
+    import { onMounted, ref } from 'vue';
+    const redacao = ref()
+    const panel = ref()
+    const loading = ref()
+
+    async function correctEssay() {
+        if (!redacao.value) {
+            alert("Digite algum texto texto!")
+            return
+        }
+
+        if (redacao.value.length < 300) {
+            alert("Digite pelo menos 7 linhas de texto!")
+            return
+        }
+        loading.value = true
+        const client = await fetch('https://api.llama-api.com/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${import.meta.env.VITE_IA_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                messages: [
+                    { "role": "user", "content": 'Corrija a redação do ENEM: \n' + redacao.value },
+                ],
+                functions: [{
+                    name: "func",
+                    description: `Corrige a redação`,
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            nota: {
+                                type: "number",
+                                description: `Forneça uma nota de 0 a 1000, seguindo o modelo do INEP`,
+                            },
+                            positivos: {
+                                type: "Array",
+                                description: "Lista de strings dos feedbacks positivos da redação, seguindo o modelo INEP",
+                            },
+                            negativos: {
+                                type: "Array",
+                                description: "Lista de strings dos feedbacks negativos da redação, seguindo o modelo INEP",
+                            }
+                        }
+                    },
+                    required: ["nota", "positivos", "negativos"],
+                }],
+                function_call: "func"
+            })
+        })
+        const res = await client.json()
+
+        console.log(res)
+
+        panel.value = res?.choices[0].message?.function_call?.arguments
+        loading.value = false
+    }
 
     onMounted(() => {
 
@@ -111,15 +209,8 @@
             document.getElementById("timer").textContent = timeString;
         }
 
-        function goToGlawCorrection() {
-            var text = document.getElementById("notes").value;
-            var glawUrl = "https://app.glau.com.vc/aluno/praticar/nova-redacao" + encodeURIComponent(text);
-            window.open(glawUrl, "_blank");
-        }
-
         document.getElementById("startBtn").addEventListener("click", startTimer);
         document.getElementById("pauseBtn").addEventListener("click", pauseTimer);
         document.getElementById("resetBtn").addEventListener("click", resetTimer);
-        document.getElementById("correctionBtn").addEventListener("click", goToGlawCorrection);
     })
 </script>
